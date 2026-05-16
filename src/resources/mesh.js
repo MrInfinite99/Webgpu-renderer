@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-import { VertexBuffer, IndexBuffer } from "../buffers.js";
+import { VertexBuffer, IndexBuffer } from "./buffers.js";
 
 export class Mesh {
     vertexBuffer;
@@ -55,7 +55,7 @@ export class Mesh {
             vertices[i * 8 + 7] = uvs[i * 2 + 1];
         }
 
-         mesh.vertexBuffer =
+        mesh.vertexBuffer =
             new VertexBuffer(device, vertices);
 
         // Detect indices format (uint16 or uint32)
@@ -71,7 +71,7 @@ export class Mesh {
         mesh.indexCount =
             indices.length;
 
-         
+
         return mesh;
 
     }

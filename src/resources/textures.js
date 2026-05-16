@@ -6,12 +6,12 @@ export class Texture {
     width;
     height;
 
-    constructor(texture,sampler,view,width, height) {
+    constructor(texture, sampler, view, width, height) {
 
         this.texture = texture;
         this.sampler = sampler;
         this.view = view;
-       
+
 
         this.width = width;
         this.height = height;
@@ -27,24 +27,24 @@ export class Texture {
         const imageBitmap =
             await createImageBitmap(blob);
 
-        const textureDescriptor ={
+        const textureDescriptor = {
             size: [
-                    imageBitmap.width,
-                    imageBitmap.height,
-                    1
-                ],
+                imageBitmap.width,
+                imageBitmap.height,
+                1
+            ],
 
-                format: "rgba8unorm",
+            format: "rgba8unorm",
 
-                usage:
-                    GPUTextureUsage.TEXTURE_BINDING |
-                    GPUTextureUsage.COPY_DST |
-                    GPUTextureUsage.RENDER_ATTACHMENT
+            usage:
+                GPUTextureUsage.TEXTURE_BINDING |
+                GPUTextureUsage.COPY_DST |
+                GPUTextureUsage.RENDER_ATTACHMENT
         };
 
-        
-        const texture =device.createTexture(textureDescriptor);
-             
+
+        const texture = device.createTexture(textureDescriptor);
+
         device.queue.copyExternalImageToTexture(
 
             { source: imageBitmap },
@@ -57,11 +57,11 @@ export class Texture {
             ]
         );
 
-         
+
         const view =
             texture.createView();
 
-        
+
         const sampler =
             device.createSampler({
 
@@ -83,5 +83,5 @@ export class Texture {
         );
     }
 
-     
+
 }

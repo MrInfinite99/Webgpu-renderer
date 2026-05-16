@@ -1,9 +1,10 @@
 import shaderCode from "../shaders/vertex.wgsl?raw";
-import { UniformBuffer } from "./buffers";
+import { UniformBuffer } from "./resources/buffers.js";
 import { mat4, vec3 } from "gl-matrix";
 import { Camera } from "./camera";
 import { Mesh } from "./resources/mesh"
-import {Material} from "./resources/material"
+import { Material } from "./resources/material"
+import { Skybox } from "./resources/skybox.js"
 
 class RenderObject {
     position;
@@ -30,10 +31,10 @@ class RenderObject {
 
     }
 
-    async init(device,pipeline,modelPath,materialOptions={}){
-        this.mesh= await Mesh.load(device,modelPath);
-        this.material = await Material.create(device,pipeline,materialOptions);
-        this.createModelBuffer(device,pipeline);
+    async init(device, pipeline, modelPath, materialOptions = {}) {
+        this.mesh = await Mesh.load(device, modelPath);
+        this.material = await Material.create(device, pipeline, materialOptions);
+        this.createModelBuffer(device, pipeline);
     }
 
     createModelMatrix() {
@@ -74,9 +75,9 @@ class RenderObject {
         );
     }
 
-    createModelBuffer(device,pipeline) {
+    createModelBuffer(device, pipeline) {
         this.uniformValues = new Float32Array(16);
-        this.modelBuffer = new UniformBuffer(device,this.uniformValues);
+        this.modelBuffer = new UniformBuffer(device, this.uniformValues);
 
         this.objectBindGroup =
             device.createBindGroup({
@@ -105,10 +106,10 @@ class RenderObject {
         this.material.update(device);
     }
 
-     
-    draw(device,pass) {
-        
-        pass.setBindGroup(1,this.objectBindGroup);
+
+    draw(device, pass) {
+
+        pass.setBindGroup(1, this.objectBindGroup);
         this.material.bind(pass);
         this.mesh.draw(pass);
     }
@@ -136,6 +137,8 @@ export class Renderer {
 
     jelly;
     jelly2;
+    jelly3;
+    skybox;
 
     constructor(canvas) {
         this.canvas = canvas;
@@ -163,21 +166,27 @@ export class Renderer {
         this.startTime = performance.now();
 
         this.camera = new Camera(this.canvas);
-         this.jelly = new RenderObject(
-    vec3.fromValues(0, 0, 0), // position
-    vec3.fromValues(0, 1, 0), // rotation
-    vec3.fromValues(1, 1, 1)  // scale
-); 
+        this.jelly = new RenderObject(
+            vec3.fromValues(0, 0, 0), // position
+            vec3.fromValues(0, 1, 0), // rotation
+            vec3.fromValues(1, 1, 1)  // scale
+        );
 
         this.jelly2 = new RenderObject(
-    vec3.fromValues(1, 1, 0), // position
-    vec3.fromValues(0, 1, 90), // rotation
-    vec3.fromValues(1, 1,1)  // scale
-);
+            vec3.fromValues(1, 1, 0), // position
+            vec3.fromValues(0, 1, 90), // rotation
+            vec3.fromValues(1, 1, 1)  // scale
+        );
+
+        this.jelly3 = new RenderObject(
+            vec3.fromValues(1, -1, 1), // position
+            vec3.fromValues(90, 1, 90), // rotation
+            vec3.fromValues(1, 1, 1)  // scale
+        );
         this.createDepthResources();
         await this.createPipeline();
         this.resizeObserver();
-       
+
     }
 
 
@@ -206,18 +215,18 @@ export class Renderer {
     }
 
     async createPipeline() {
- 
+
         const shaderModule = this.device.createShaderModule({
             code: shaderCode,
         });
 
-        const cameraBufferSize = 64; // 4x4 matrix (64 bytes) + time (4 bytes) + padding (12 bytes)
+        const cameraBufferSize = 64; // 4x4 matrix (64 bytes) 
         this.cameraUniformValues = new Float32Array(16);
 
 
-       
+
         this.cameraBuffer = new UniformBuffer(this.device, this.cameraUniformValues);
-        
+
 
 
 
@@ -275,18 +284,26 @@ export class Renderer {
             }
         });
 
-        await this.jelly.init(this.device,this.pipeline,"../models/jelly.glb",
+        await this.jelly.init(this.device, this.pipeline, "/models/jelly.glb",
             {
-                color:[1,1,1,1],
+                color: [0.6, 1, 1, 1],
                 texturePath:
-                    "../textures/test2.png"
+                    "/textures/test2.png"
             }
         )
-        await this.jelly2.init(this.device,this.pipeline,"../models/jelly.glb",
+        await this.jelly2.init(this.device, this.pipeline, "/models/jelly.glb",
             {
-                color:[0,1,0,1],
+                color: [0, 1, 0, 1],
                 texturePath:
-                    "../textures/test.jpg"
+                    "/textures/test2.png"
+            }
+        )
+
+        await this.jelly3.init(this.device, this.pipeline, "/models/jelly.glb",
+            {
+                color: [1, 0.5, 1, 1],
+                texturePath:
+                    "/textures/test2.png"
             }
         )
 
@@ -302,6 +319,10 @@ export class Renderer {
                 },
             ],
         });
+
+        
+        this.skybox = new Skybox(this.device);
+        await this.skybox.init(this.device, this.cameraBuffer.buffer, this.canvasFormat, "/textures/skybox");
     }
 
     render() {
@@ -309,12 +330,14 @@ export class Renderer {
         const time = (now - this.startTime) / 1000; // Convert to seconds
         this.startTime = now;
 
+        this.camera.processMovements(time);
 
-        this.camera.update(time);
+
         // Update uniform values
         this.cameraUniformValues.set(this.camera.vp, 0);
         this.jelly.update(this.device);
         this.jelly2.update(this.device);
+        this.jelly3.update(this.device);
 
 
         const encoder = this.device.createCommandEncoder();
@@ -332,10 +355,14 @@ export class Renderer {
             depthStencilAttachment: this.depthAttachment
         });
 
+        // Draw skybox first
+        this.skybox.draw(pass);
+
         pass.setPipeline(this.pipeline);
         pass.setBindGroup(0, this.bindGroup);
-        this.jelly.draw(this.device,pass);
-        this.jelly2.draw(this.device,pass);
+        this.jelly.draw(this.device, pass);
+        this.jelly2.draw(this.device, pass);
+        this.jelly3.draw(this.device,pass);
         pass.end();
         this.cameraBuffer.write(this.device, this.cameraUniformValues, 0);
         this.device.queue.submit([encoder.finish()]);

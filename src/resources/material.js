@@ -1,5 +1,5 @@
 import { Texture } from "./textures"
-import { UniformBuffer } from "../buffers";
+import { UniformBuffer } from "./buffers";
 
 export class Material {
     color;
@@ -19,7 +19,7 @@ export class Material {
             0
         );
 
-        this.materialBuffer = new UniformBuffer(device,this.uniformValues);
+        this.materialBuffer = new UniformBuffer(device, this.uniformValues);
     }
 
     static async create(
@@ -49,7 +49,7 @@ export class Material {
         return material;
     }
 
-     createBindGroup(device,pipeline) {
+    createBindGroup(device, pipeline) {
 
         const entries = [
 
@@ -63,7 +63,7 @@ export class Material {
             }
         ];
 
-        
+
         if (this.texture) {
 
             entries.push({
